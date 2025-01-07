@@ -25,3 +25,12 @@ static int n_cards = 0;
 
 static Progress progress[MAX_CARDS];
 static int n_progress = 0;
+
+static long today_day(void) { return (long)(time(NULL) / 86400); }
+
+static void trim_newline(char *s) {
+  size_t len = strlen(s);
+  while (len > 0 && (s[len - 1] == '\n' || s[len - 1] == '\r')) {
+    s[--len] = '\0';
+  }
+}
