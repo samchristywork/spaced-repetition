@@ -34,3 +34,24 @@ static void trim_newline(char *s) {
     s[--len] = '\0';
   }
 }
+
+static int load_cards(const char *filename) {
+  FILE *f = fopen(filename, "r");
+  if (!f) {
+    fprintf(stderr, "Cannot open cards file: %s\n", filename);
+    return -1;
+  }
+  char line[MAX_FIELD * 2];
+  while (fgets(line, sizeof(line), f) && n_cards < MAX_CARDS) {
+    trim_newline(line);
+    char *tab = strchr(line, '\t');
+    if (!tab)
+      continue;
+    *tab = '\0';
+    snprintf(cards[n_cards].front, MAX_FIELD, "%s", line);
+    snprintf(cards[n_cards].back, MAX_FIELD, "%s", tab + 1);
+    n_cards++;
+  }
+  fclose(f);
+  return 0;
+}
