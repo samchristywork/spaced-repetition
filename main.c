@@ -55,3 +55,47 @@ static int load_cards(const char *filename) {
   fclose(f);
   return 0;
 }
+
+static void load_progress(const char *filename) {
+  FILE *f = fopen(filename, "r");
+  if (!f)
+    return;
+  char line[MAX_FIELD * 2];
+  while (fgets(line, sizeof(line), f) && n_progress < MAX_CARDS) {
+    trim_newline(line);
+    char *p = line;
+    char *tab;
+
+    tab = strchr(p, '\t');
+    if (!tab)
+      continue;
+    *tab = '\0';
+    snprintf(progress[n_progress].front, MAX_FIELD, "%s", p);
+    p = tab + 1;
+
+    tab = strchr(p, '\t');
+    if (!tab)
+      continue;
+    *tab = '\0';
+    progress[n_progress].next_day = atol(p);
+    p = tab + 1;
+
+    tab = strchr(p, '\t');
+    if (!tab)
+      continue;
+    *tab = '\0';
+    progress[n_progress].interval = atoi(p);
+    p = tab + 1;
+
+    tab = strchr(p, '\t');
+    if (!tab)
+      continue;
+    *tab = '\0';
+    progress[n_progress].reps = atoi(p);
+    p = tab + 1;
+
+    progress[n_progress].ef = (float)atof(p);
+    n_progress++;
+  }
+  fclose(f);
+}
