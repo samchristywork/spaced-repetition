@@ -114,3 +114,27 @@ static int save_progress(const char *filename) {
   fclose(f);
   return 0;
 }
+
+static Progress *find_progress(const char *front) {
+  for (int i = 0; i < n_progress; i++) {
+    if (strcmp(progress[i].front, front) == 0) {
+      return &progress[i];
+    }
+  }
+  return NULL;
+}
+
+static Progress *get_or_create_progress(const char *front) {
+  Progress *p = find_progress(front);
+  if (p)
+    return p;
+  if (n_progress >= MAX_CARDS)
+    return NULL;
+  p = &progress[n_progress++];
+  strncpy(p->front, front, MAX_FIELD - 1);
+  p->next_day = today_day();
+  p->interval = 1;
+  p->reps = 0;
+  p->ef = 2.5f;
+  return p;
+}
