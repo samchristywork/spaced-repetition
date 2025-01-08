@@ -99,3 +99,18 @@ static void load_progress(const char *filename) {
   }
   fclose(f);
 }
+
+static int save_progress(const char *filename) {
+  FILE *f = fopen(filename, "w");
+  if (!f) {
+    fprintf(stderr, "Cannot write progress file: %s\n", filename);
+    return -1;
+  }
+  for (int i = 0; i < n_progress; i++) {
+    fprintf(f, "%s\t%ld\t%d\t%d\t%.2f\n", progress[i].front,
+            progress[i].next_day, progress[i].interval, progress[i].reps,
+            progress[i].ef);
+  }
+  fclose(f);
+  return 0;
+}
