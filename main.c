@@ -138,3 +138,24 @@ static Progress *get_or_create_progress(const char *front) {
   p->ef = 2.5f;
   return p;
 }
+
+static void sm2_update(Progress *p, int quality) {
+  if (quality < 3) {
+    p->reps = 0;
+    p->interval = 1;
+  } else {
+    if (p->reps == 0) {
+      p->interval = 1;
+    } else if (p->reps == 1) {
+      p->interval = 6;
+    } else {
+      p->interval = (int)roundf((float)p->interval * p->ef);
+    }
+    p->reps++;
+    p->ef +=
+        0.1f - (float)(5 - quality) * (0.08f + (float)(5 - quality) * 0.02f);
+    if (p->ef < 1.3f)
+      p->ef = 1.3f;
+  }
+  p->next_day = today_day() + p->interval;
+}
