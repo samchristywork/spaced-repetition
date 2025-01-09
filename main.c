@@ -171,3 +171,11 @@ static void format_date(long day, char *buf, size_t size) {
   struct tm *tm = gmtime(&t);
   strftime(buf, size, "%Y-%m-%d", tm);
 }
+
+static void print_usage(const char *prog) {
+  printf("Usage: %s <command> <cards.tsv>\n\n", prog);
+  printf("Commands:\n");
+  printf("  --review    Review cards that are due today\n");
+  printf("  --show      Print a table of all cards and their status\n");
+  printf("  --help      Show this help message\n");
+}
