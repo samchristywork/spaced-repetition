@@ -216,3 +216,55 @@ static void cmd_show(void) {
            date_buf, interval, reps, ef);
   }
 }
+
+static void cmd_review(const char *progress_file) {
+  long today = today_day();
+  int due_count = 0;
+  for (int i = 0; i < n_cards; i++) {
+    Progress *p = get_or_create_progress(cards[i].front);
+    if (p && p->next_day <= today)
+      due_count++;
+  }
+
+  if (due_count == 0) {
+    printf("No cards due for review.\n");
+    save_progress(progress_file);
+    return;
+  }
+
+  printf("%d card(s) due for review.\n\n", due_count);
+
+  int reviewed = 0;
+  for (int i = 0; i < n_cards; i++) {
+    Progress *p = get_or_create_progress(cards[i].front);
+    if (!p || p->next_day > today)
+      continue;
+
+    reviewed++;
+    printf("[%d/%d] %s\n", reviewed, due_count, cards[i].front);
+    printf("Press Enter to reveal...");
+    fflush(stdout);
+    wait_for_enter();
+
+    printf("Answer: %s\n\n", cards[i].back);
+
+    int quality = -1;
+    char buf[64];
+    while (quality < 0 || quality > 5) {
+      printf("Score (0=blackout 1=wrong 2=close 3=hard 4=good 5=easy): ");
+      fflush(stdout);
+      if (!fgets(buf, sizeof(buf), stdin))
+        break;
+      if (sscanf(buf, "%d", &quality) != 1 || quality < 0 || quality > 5) {
+        printf("Enter a number from 0 to 5.\n");
+        quality = -1;
+      }
+    }
+
+    sm2_update(p, quality);
+    printf("Next review in %d day(s).\n\n", p->interval);
+    save_progress(progress_file);
+  }
+
+  printf("Session complete. Reviewed %d card(s).\n", reviewed);
+}
