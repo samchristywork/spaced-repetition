@@ -159,3 +159,15 @@ static void sm2_update(Progress *p, int quality) {
   }
   p->next_day = today_day() + p->interval;
 }
+
+static void wait_for_enter(void) {
+  int c;
+  while ((c = getchar()) != '\n' && c != EOF)
+    ;
+}
+
+static void format_date(long day, char *buf, size_t size) {
+  time_t t = (time_t)(day * 86400);
+  struct tm *tm = gmtime(&t);
+  strftime(buf, size, "%Y-%m-%d", tm);
+}
