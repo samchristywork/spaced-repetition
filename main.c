@@ -179,3 +179,40 @@ static void print_usage(const char *prog) {
   printf("  --show      Print a table of all cards and their status\n");
   printf("  --help      Show this help message\n");
 }
+
+static void cmd_show(void) {
+  int w_front = (int)strlen("Front");
+  int w_back = (int)strlen("Back");
+  for (int i = 0; i < n_cards; i++) {
+    int fl = (int)strlen(cards[i].front);
+    int bl = (int)strlen(cards[i].back);
+    if (fl > w_front) w_front = fl;
+    if (bl > w_back) w_back = bl;
+  }
+  if (w_front > 40) w_front = 40;
+  if (w_back > 40) w_back = 40;
+
+  printf("%-*s  %-*s  %-10s  %8s  %4s  %4s\n",
+         w_front, "Front", w_back, "Back", "Next Review", "Interval", "Reps", "EF");
+
+  int sep_len = w_front + 2 + w_back + 2 + 10 + 2 + 8 + 2 + 4 + 2 + 4;
+  for (int i = 0; i < sep_len; i++) putchar('-');
+  putchar('\n');
+
+  for (int i = 0; i < n_cards; i++) {
+    Progress *p = find_progress(cards[i].front);
+    char date_buf[16] = "new";
+    int interval = 0, reps = 0;
+    float ef = 0.0f;
+    if (p) {
+      format_date(p->next_day, date_buf, sizeof(date_buf));
+      interval = p->interval;
+      reps = p->reps;
+      ef = p->ef;
+    }
+    printf("%-*.*s  %-*.*s  %-10s  %8d  %4d  %4.2f\n",
+           w_front, w_front, cards[i].front,
+           w_back, w_back, cards[i].back,
+           date_buf, interval, reps, ef);
+  }
+}
