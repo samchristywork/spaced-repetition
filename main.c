@@ -268,3 +268,43 @@ static void cmd_review(const char *progress_file) {
 
   printf("Session complete. Reviewed %d card(s).\n", reviewed);
 }
+
+int main(int argc, char *argv[]) {
+  if (argc < 2 || strcmp(argv[1], "--help") == 0) {
+    print_usage(argv[0]);
+    return 0;
+  }
+
+  const char *cmd = argv[1];
+  if (strcmp(cmd, "--show") != 0 && strcmp(cmd, "--review") != 0) {
+    fprintf(stderr, "Unknown command: %s\n\n", cmd);
+    print_usage(argv[0]);
+    return 1;
+  }
+
+  if (argc < 3) {
+    fprintf(stderr, "Missing cards file.\n\n");
+    print_usage(argv[0]);
+    return 1;
+  }
+
+  const char *cards_file = argv[2];
+  if (load_cards(cards_file) < 0)
+    return 1;
+  if (n_cards == 0) {
+    fprintf(stderr, "No cards found in %s\n", cards_file);
+    return 1;
+  }
+
+  char progress_file[4096];
+  snprintf(progress_file, sizeof(progress_file), "%s.progress", cards_file);
+  load_progress(progress_file);
+
+  if (strcmp(cmd, "--show") == 0) {
+    cmd_show();
+  } else {
+    cmd_review(progress_file);
+  }
+
+  return 0;
+}
