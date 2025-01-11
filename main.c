@@ -201,13 +201,16 @@ static void cmd_show(void) {
   if (w_front > 40) w_front = 40;
   if (w_back > 40) w_back = 40;
 
-  printf("%-*s  %-*s  %-10s  %8s  %4s  %4s\n",
+  printf(C_BOLD "%-*s  %-*s  %-10s  %8s  %4s  %4s\n" C_RESET,
          w_front, "Front", w_back, "Back", "Next Review", "Interval", "Reps", "EF");
 
   int sep_len = w_front + 2 + w_back + 2 + 10 + 2 + 8 + 2 + 4 + 2 + 4;
+  printf(C_DIM);
   for (int i = 0; i < sep_len; i++) putchar('-');
+  printf(C_RESET);
   putchar('\n');
 
+  long today = today_day();
   for (int i = 0; i < n_cards; i++) {
     Progress *p = find_progress(cards[i].front);
     char date_buf[16] = "new";
@@ -219,10 +222,22 @@ static void cmd_show(void) {
       reps = p->reps;
       ef = p->ef;
     }
-    printf("%-*.*s  %-*.*s  %-10s  %8d  %4d  %4.2f\n",
+    const char *row_color = "";
+    const char *date_color = "";
+    if (!p) {
+      date_color = C_BLUE;
+    } else if (p->next_day <= today) {
+      row_color = C_YELLOW;
+      date_color = C_YELLOW C_BOLD;
+    } else {
+      date_color = C_GREEN;
+    }
+    printf("%s%-*.*s  %-*.*s  %s%-10s" C_RESET "%s  %8d  %4d  %4.2f\n" C_RESET,
+           row_color,
            w_front, w_front, cards[i].front,
            w_back, w_back, cards[i].back,
-           date_buf, interval, reps, ef);
+           date_color, date_buf,
+           row_color, interval, reps, ef);
   }
 }
 
