@@ -251,12 +251,12 @@ static void cmd_review(const char *progress_file) {
   }
 
   if (due_count == 0) {
-    printf("No cards due for review.\n");
+    printf(C_GREEN "No cards due for review.\n" C_RESET);
     save_progress(progress_file);
     return;
   }
 
-  printf("%d card(s) due for review.\n\n", due_count);
+  printf(C_BOLD "%d card(s) due for review.\n\n" C_RESET, due_count);
 
   int reviewed = 0;
   for (int i = 0; i < n_cards; i++) {
@@ -265,32 +265,33 @@ static void cmd_review(const char *progress_file) {
       continue;
 
     reviewed++;
-    printf("[%d/%d] %s\n", reviewed, due_count, cards[i].front);
-    printf("Press Enter to reveal...");
+    printf(C_BOLD C_CYAN "[%d/%d]" C_RESET C_BOLD " %s\n" C_RESET,
+           reviewed, due_count, cards[i].front);
+    printf(C_DIM "Press Enter to reveal..." C_RESET);
     fflush(stdout);
     wait_for_enter();
 
-    printf("Answer: %s\n\n", cards[i].back);
+    printf(C_BOLD "Answer: " C_RESET C_GREEN "%s\n\n" C_RESET, cards[i].back);
 
     int quality = -1;
     char buf[64];
     while (quality < 0 || quality > 5) {
-      printf("Score (0=blackout 1=wrong 2=close 3=hard 4=good 5=easy): ");
+      printf(C_YELLOW "Score (0=blackout 1=wrong 2=close 3=hard 4=good 5=easy): " C_RESET);
       fflush(stdout);
       if (!fgets(buf, sizeof(buf), stdin))
         break;
       if (sscanf(buf, "%d", &quality) != 1 || quality < 0 || quality > 5) {
-        printf("Enter a number from 0 to 5.\n");
+        printf(C_RED "Enter a number from 0 to 5.\n" C_RESET);
         quality = -1;
       }
     }
 
     sm2_update(p, quality);
-    printf("Next review in %d day(s).\n\n", p->interval);
+    printf(C_DIM "Next review in %d day(s).\n\n" C_RESET, p->interval);
     save_progress(progress_file);
   }
 
-  printf("Session complete. Reviewed %d card(s).\n", reviewed);
+  printf(C_BOLD C_GREEN "Session complete." C_RESET " Reviewed %d card(s).\n", reviewed);
 }
 
 int main(int argc, char *argv[]) {
