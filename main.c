@@ -182,11 +182,11 @@ static void format_date(long day, char *buf, size_t size) {
 }
 
 static void print_usage(const char *prog) {
-  printf("Usage: %s <command> <cards.tsv>\n\n", prog);
-  printf("Commands:\n");
-  printf("  --review    Review cards that are due today\n");
-  printf("  --show      Print a table of all cards and their status\n");
-  printf("  --help      Show this help message\n");
+  printf(C_BOLD "Usage:" C_RESET " %s <command> <cards.tsv>\n\n", prog);
+  printf(C_BOLD "Commands:\n" C_RESET);
+  printf("  " C_CYAN "--review" C_RESET "    Review cards that are due today\n");
+  printf("  " C_CYAN "--show" C_RESET "      Print a table of all cards and their status\n");
+  printf("  " C_CYAN "--help" C_RESET "      Show this help message\n");
 }
 
 static void cmd_show(void) {
