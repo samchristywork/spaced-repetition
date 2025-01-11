@@ -184,9 +184,32 @@ static void format_date(long day, char *buf, size_t size) {
 static void print_usage(const char *prog) {
   printf(C_BOLD "Usage:" C_RESET " %s <command> <cards.tsv>\n\n", prog);
   printf(C_BOLD "Commands:\n" C_RESET);
+  printf("  " C_CYAN "--add" C_RESET "       Add a new card interactively\n");
   printf("  " C_CYAN "--review" C_RESET "    Review cards that are due today\n");
   printf("  " C_CYAN "--show" C_RESET "      Print a table of all cards and their status\n");
   printf("  " C_CYAN "--help" C_RESET "      Show this help message\n");
+}
+
+static int cmd_add(const char *cards_file) {
+  char front[MAX_FIELD];
+  char back[MAX_FIELD];
+
+  printf(C_BOLD "Front: " C_RESET);
+  fflush(stdout);
+  if (!fgets(front, sizeof(front), stdin)) return -1;
+  trim_newline(front);
+
+  printf(C_BOLD "Back:  " C_RESET);
+  fflush(stdout);
+  if (!fgets(back, sizeof(back), stdin)) return -1;
+  trim_newline(back);
+
+  FILE *f = fopen(cards_file, "a");
+  fprintf(f, "%s\t%s\n", front, back);
+  fclose(f);
+
+  printf(C_GREEN "Card added." C_RESET "\n");
+  return 0;
 }
 
 static void cmd_show(void) {
@@ -301,7 +324,8 @@ int main(int argc, char *argv[]) {
   }
 
   const char *cmd = argv[1];
-  if (strcmp(cmd, "--show") != 0 && strcmp(cmd, "--review") != 0) {
+  if (strcmp(cmd, "--show") != 0 && strcmp(cmd, "--review") != 0 &&
+      strcmp(cmd, "--add") != 0) {
     fprintf(stderr, "Unknown command: %s\n\n", cmd);
     print_usage(argv[0]);
     return 1;
@@ -314,6 +338,10 @@ int main(int argc, char *argv[]) {
   }
 
   const char *cards_file = argv[2];
+
+  if (strcmp(cmd, "--add") == 0)
+    return cmd_add(cards_file) < 0 ? 1 : 0;
+
   if (load_cards(cards_file) < 0)
     return 1;
   if (n_cards == 0) {
