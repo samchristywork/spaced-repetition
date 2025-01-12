@@ -187,7 +187,36 @@ static void print_usage(const char *prog) {
   printf("  " C_CYAN "--add" C_RESET "       Add a new card interactively\n");
   printf("  " C_CYAN "--review" C_RESET "    Review cards that are due today\n");
   printf("  " C_CYAN "--show" C_RESET "      Print a table of all cards and their status\n");
+  printf("  " C_CYAN "--stats" C_RESET "     Show deck statistics\n");
   printf("  " C_CYAN "--help" C_RESET "      Show this help message\n");
+}
+
+static void cmd_stats(void) {
+  long today = today_day();
+  int n_new = 0, n_due = 0, n_due_week = 0, n_learned = 0;
+  float ef_sum = 0.0f;
+
+  for (int i = 0; i < n_cards; i++) {
+    Progress *p = find_progress(cards[i].front);
+    if (!p) {
+      n_new++;
+      continue;
+    }
+    n_learned++;
+    ef_sum += p->ef;
+    if (p->next_day <= today)
+      n_due++;
+    else if (p->next_day <= today + 7)
+      n_due_week++;
+  }
+
+  printf(C_BOLD "Deck statistics\n" C_RESET);
+  printf("  Total cards:      %d\n", n_cards);
+  printf("  New (unseen):     " C_BLUE "%d\n" C_RESET, n_new);
+  printf("  Due today:        %s%d\n" C_RESET, n_due > 0 ? C_YELLOW C_BOLD : C_GREEN, n_due);
+  printf("  Due this week:    %d\n", n_due + n_due_week);
+  if (n_learned > 0)
+    printf("  Avg. ease factor: %.2f\n", (double)(ef_sum / (float)n_learned));
 }
 
 static int cmd_add(const char *cards_file) {
@@ -336,7 +365,8 @@ static void cmd_review(const char *progress_file) {
 
 static int is_command(const char *s) {
   return strcmp(s, "--add") == 0 || strcmp(s, "--review") == 0 ||
-         strcmp(s, "--show") == 0 || strcmp(s, "--help") == 0;
+         strcmp(s, "--show") == 0 || strcmp(s, "--stats") == 0 ||
+         strcmp(s, "--help") == 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -361,7 +391,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
   if (strcmp(cmd, "--show") != 0 && strcmp(cmd, "--review") != 0 &&
-      strcmp(cmd, "--add") != 0) {
+      strcmp(cmd, "--add") != 0 && strcmp(cmd, "--stats") != 0) {
     fprintf(stderr, "Unknown command: %s\n\n", cmd);
     print_usage(argv[0]);
     return 1;
@@ -388,6 +418,8 @@ int main(int argc, char *argv[]) {
 
   if (strcmp(cmd, "--show") == 0) {
     cmd_show();
+  } else if (strcmp(cmd, "--stats") == 0) {
+    cmd_stats();
   } else {
     cmd_review(progress_file);
   }
