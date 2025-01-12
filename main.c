@@ -334,27 +334,43 @@ static void cmd_review(const char *progress_file) {
   printf(C_BOLD C_GREEN "Session complete." C_RESET " Reviewed %d card(s).\n", reviewed);
 }
 
+static int is_command(const char *s) {
+  return strcmp(s, "--add") == 0 || strcmp(s, "--review") == 0 ||
+         strcmp(s, "--show") == 0 || strcmp(s, "--help") == 0;
+}
+
 int main(int argc, char *argv[]) {
-  if (argc < 2 || strcmp(argv[1], "--help") == 0) {
+  if (argc < 2 || strcmp(argv[1], "--help") == 0 ||
+      (argc >= 3 && strcmp(argv[2], "--help") == 0)) {
     print_usage(argv[0]);
     return 0;
   }
 
-  const char *cmd = argv[1];
+  const char *cmd = NULL;
+  const char *cards_file = NULL;
+  for (int i = 1; i < argc; i++) {
+    if (is_command(argv[i]))
+      cmd = argv[i];
+    else
+      cards_file = argv[i];
+  }
+
+  if (!cmd) {
+    fprintf(stderr, "Missing command.\n\n");
+    print_usage(argv[0]);
+    return 1;
+  }
   if (strcmp(cmd, "--show") != 0 && strcmp(cmd, "--review") != 0 &&
       strcmp(cmd, "--add") != 0) {
     fprintf(stderr, "Unknown command: %s\n\n", cmd);
     print_usage(argv[0]);
     return 1;
   }
-
-  if (argc < 3) {
+  if (!cards_file) {
     fprintf(stderr, "Missing cards file.\n\n");
     print_usage(argv[0]);
     return 1;
   }
-
-  const char *cards_file = argv[2];
 
   if (strcmp(cmd, "--add") == 0)
     return cmd_add(cards_file) < 0 ? 1 : 0;
