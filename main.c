@@ -198,13 +198,30 @@ static int cmd_add(const char *cards_file) {
   fflush(stdout);
   if (!fgets(front, sizeof(front), stdin)) return -1;
   trim_newline(front);
+  if (front[0] == '\0') {
+    fprintf(stderr, "Front cannot be empty.\n");
+    return -1;
+  }
 
   printf(C_BOLD "Back:  " C_RESET);
   fflush(stdout);
   if (!fgets(back, sizeof(back), stdin)) return -1;
   trim_newline(back);
+  if (back[0] == '\0') {
+    fprintf(stderr, "Back cannot be empty.\n");
+    return -1;
+  }
+
+  if (strchr(front, '\t') || strchr(back, '\t')) {
+    fprintf(stderr, "Card text must not contain tab characters.\n");
+    return -1;
+  }
 
   FILE *f = fopen(cards_file, "a");
+  if (!f) {
+    fprintf(stderr, "Cannot open cards file: %s\n", cards_file);
+    return -1;
+  }
   fprintf(f, "%s\t%s\n", front, back);
   fclose(f);
 
