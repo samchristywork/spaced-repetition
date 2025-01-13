@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -211,13 +212,14 @@ static void format_date(long day, char *buf, size_t size) {
 static void print_usage(const char *prog) {
   printf(C_BOLD "Usage:" C_RESET " %s <command> <cards.tsv> [more.tsv ...]\n\n", prog);
   printf(C_BOLD "Commands:\n" C_RESET);
-  printf("  " C_CYAN "--add" C_RESET "       Add a new card interactively\n");
-  printf("  " C_CYAN "--review" C_RESET "    Review cards that are due today\n");
-  printf("  " C_CYAN "--show" C_RESET "      Print a table of all cards and their status\n");
-  printf("  " C_CYAN "--stats" C_RESET "     Show deck statistics\n");
-  printf("  " C_CYAN "--help" C_RESET "      Show this help message\n");
+  printf("  " C_CYAN "--add" C_RESET "            Add a new card interactively\n");
+  printf("  " C_CYAN "--review" C_RESET "         Review cards that are due today\n");
+  printf("  " C_CYAN "--show" C_RESET "           Print a table of all cards and their status\n");
+  printf("  " C_CYAN "--stats" C_RESET "          Show deck statistics\n");
+  printf("  " C_CYAN "--search" C_RESET " <term>  Find cards matching a substring\n");
+  printf("  " C_CYAN "--help" C_RESET "           Show this help message\n");
   printf("\n" C_BOLD "Flags:\n" C_RESET);
-  printf("  " C_CYAN "--reverse" C_RESET "   Swap front and back (uses separate progress)\n");
+  printf("  " C_CYAN "--reverse" C_RESET "        Swap front and back (uses separate progress)\n");
 }
 
 static void cmd_stats(void) {
@@ -392,10 +394,91 @@ static void cmd_review(void) {
   printf(C_BOLD C_GREEN "Session complete." C_RESET " Reviewed %d card(s).\n", reviewed);
 }
 
+static int contains_icase(const char *haystack, const char *needle) {
+  size_t hlen = strlen(haystack), nlen = strlen(needle);
+  if (nlen == 0) return 1;
+  for (size_t i = 0; i + nlen <= hlen; i++) {
+    size_t j;
+    for (j = 0; j < nlen; j++) {
+      if (tolower((unsigned char)haystack[i + j]) !=
+          tolower((unsigned char)needle[j]))
+        break;
+    }
+    if (j == nlen) return 1;
+  }
+  return 0;
+}
+
+static void cmd_search(const char *term) {
+  int w_front = (int)strlen("Front");
+  int w_back  = (int)strlen("Back");
+  for (int i = 0; i < n_cards; i++) {
+    if (!contains_icase(cards[i].front, term) &&
+        !contains_icase(cards[i].back, term))
+      continue;
+    int fl = (int)strlen(cards[i].front);
+    int bl = (int)strlen(cards[i].back);
+    if (fl > w_front) w_front = fl;
+    if (bl > w_back)  w_back  = bl;
+  }
+  if (w_front > 40) w_front = 40;
+  if (w_back  > 40) w_back  = 40;
+
+  long today = today_day();
+  int found = 0;
+  for (int i = 0; i < n_cards; i++) {
+    if (!contains_icase(cards[i].front, term) &&
+        !contains_icase(cards[i].back, term))
+      continue;
+
+    if (found == 0) {
+      printf(C_BOLD "%-*s  %-*s  %-10s  %8s  %4s  %4s\n" C_RESET,
+             w_front, "Front", w_back, "Back", "Next Review", "Interval", "Reps", "EF");
+      int sep_len = w_front + 2 + w_back + 2 + 10 + 2 + 8 + 2 + 4 + 2 + 4;
+      printf(C_DIM);
+      for (int s = 0; s < sep_len; s++) putchar('-');
+      printf(C_RESET "\n");
+    }
+    found++;
+
+    Progress *p = find_progress(cards[i].front);
+    char date_buf[16] = "new";
+    int interval = 0, reps = 0;
+    float ef = 0.0f;
+    if (p) {
+      format_date(p->next_day, date_buf, sizeof(date_buf));
+      interval = p->interval;
+      reps     = p->reps;
+      ef       = p->ef;
+    }
+    const char *row_color  = "";
+    const char *date_color = "";
+    if (!p) {
+      date_color = C_BLUE;
+    } else if (p->next_day <= today) {
+      row_color  = C_YELLOW;
+      date_color = C_YELLOW C_BOLD;
+    } else {
+      date_color = C_GREEN;
+    }
+    printf("%s%-*.*s  %-*.*s  %s%-10s" C_RESET "%s  %8d  %4d  %4.2f\n" C_RESET,
+           row_color,
+           w_front, w_front, cards[i].front,
+           w_back,  w_back,  cards[i].back,
+           date_color, date_buf,
+           row_color, interval, reps, ef);
+  }
+
+  if (found == 0)
+    printf(C_DIM "No cards matching \"%s\".\n" C_RESET, term);
+  else
+    printf(C_DIM "\n%d card(s) found.\n" C_RESET, found);
+}
+
 static int is_command(const char *s) {
   return strcmp(s, "--add") == 0 || strcmp(s, "--review") == 0 ||
          strcmp(s, "--show") == 0 || strcmp(s, "--stats") == 0 ||
-         strcmp(s, "--help") == 0;
+         strcmp(s, "--search") == 0 || strcmp(s, "--help") == 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -406,14 +489,21 @@ int main(int argc, char *argv[]) {
   }
 
   const char *cmd = NULL;
+  const char *search_term = NULL;
   int reverse = 0;
   for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "--reverse") == 0)
+    if (strcmp(argv[i], "--reverse") == 0) {
       reverse = 1;
-    else if (is_command(argv[i]))
+    } else if (strcmp(argv[i], "--search") == 0) {
+      cmd = "--search";
+      if (i + 1 < argc && !is_command(argv[i + 1]) &&
+          strcmp(argv[i + 1], "--reverse") != 0)
+        search_term = argv[++i];
+    } else if (is_command(argv[i])) {
       cmd = argv[i];
-    else if (n_files < MAX_FILES)
+    } else if (n_files < MAX_FILES) {
       snprintf(g_cards_files[n_files++], 4096, "%s", argv[i]);
+    }
   }
 
   if (!cmd) {
@@ -421,8 +511,14 @@ int main(int argc, char *argv[]) {
     print_usage(argv[0]);
     return 1;
   }
+  if (strcmp(cmd, "--search") == 0 && !search_term) {
+    fprintf(stderr, "--search requires a search term.\n\n");
+    print_usage(argv[0]);
+    return 1;
+  }
   if (strcmp(cmd, "--show") != 0 && strcmp(cmd, "--review") != 0 &&
-      strcmp(cmd, "--add") != 0 && strcmp(cmd, "--stats") != 0) {
+      strcmp(cmd, "--add") != 0 && strcmp(cmd, "--stats") != 0 &&
+      strcmp(cmd, "--search") != 0) {
     fprintf(stderr, "Unknown command: %s\n\n", cmd);
     print_usage(argv[0]);
     return 1;
@@ -469,6 +565,8 @@ int main(int argc, char *argv[]) {
     cmd_show();
   } else if (strcmp(cmd, "--stats") == 0) {
     cmd_stats();
+  } else if (strcmp(cmd, "--search") == 0) {
+    cmd_search(search_term);
   } else {
     cmd_review();
   }
