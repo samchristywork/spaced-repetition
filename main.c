@@ -207,6 +207,8 @@ static void print_usage(const char *prog) {
   printf("  " C_CYAN "--show" C_RESET "      Print a table of all cards and their status\n");
   printf("  " C_CYAN "--stats" C_RESET "     Show deck statistics\n");
   printf("  " C_CYAN "--help" C_RESET "      Show this help message\n");
+  printf("\n" C_BOLD "Flags:\n" C_RESET);
+  printf("  " C_CYAN "--reverse" C_RESET "   Swap front and back (uses separate progress)\n");
 }
 
 static void cmd_stats(void) {
@@ -395,8 +397,11 @@ int main(int argc, char *argv[]) {
   }
 
   const char *cmd = NULL;
+  int reverse = 0;
   for (int i = 1; i < argc; i++) {
-    if (is_command(argv[i]))
+    if (strcmp(argv[i], "--reverse") == 0)
+      reverse = 1;
+    else if (is_command(argv[i]))
       cmd = argv[i];
     else if (n_files < MAX_FILES)
       snprintf(g_cards_files[n_files++], 4096, "%s", argv[i]);
@@ -428,7 +433,8 @@ int main(int argc, char *argv[]) {
   }
 
   for (int fi = 0; fi < n_files; fi++) {
-    snprintf(g_progress_files[fi], 4096, "%s.progress", g_cards_files[fi]);
+    snprintf(g_progress_files[fi], 4096, "%s%s.progress",
+             g_cards_files[fi], reverse ? ".rev" : "");
     if (load_cards(g_cards_files[fi], fi) < 0)
       return 1;
     load_progress(g_progress_files[fi]);
@@ -436,6 +442,15 @@ int main(int argc, char *argv[]) {
   if (n_cards == 0) {
     fprintf(stderr, "No cards found.\n");
     return 1;
+  }
+
+  if (reverse) {
+    for (int i = 0; i < n_cards; i++) {
+      char tmp[MAX_FIELD];
+      snprintf(tmp, MAX_FIELD, "%s", cards[i].front);
+      snprintf(cards[i].front, MAX_FIELD, "%s", cards[i].back);
+      snprintf(cards[i].back, MAX_FIELD, "%s", tmp);
+    }
   }
 
   if (strcmp(cmd, "--show") == 0) {
