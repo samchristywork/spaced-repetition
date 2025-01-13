@@ -15,10 +15,12 @@
 
 #define MAX_CARDS 10000
 #define MAX_FIELD 2048
+#define MAX_FILES 64
 
 typedef struct {
   char front[MAX_FIELD];
   char back[MAX_FIELD];
+  int file_idx;
 } Card;
 
 typedef struct {
@@ -35,6 +37,10 @@ static int n_cards = 0;
 static Progress progress[MAX_CARDS];
 static int n_progress = 0;
 
+static char g_cards_files[MAX_FILES][4096];
+static char g_progress_files[MAX_FILES][4096];
+static int n_files = 0;
+
 static long today_day(void) { return (long)(time(NULL) / 86400); }
 
 static void trim_newline(char *s) {
@@ -44,7 +50,7 @@ static void trim_newline(char *s) {
   }
 }
 
-static int load_cards(const char *filename) {
+static int load_cards(const char *filename, int file_idx) {
   FILE *f = fopen(filename, "r");
   if (!f) {
     fprintf(stderr, "Cannot open cards file: %s\n", filename);
@@ -59,6 +65,7 @@ static int load_cards(const char *filename) {
     *tab = '\0';
     snprintf(cards[n_cards].front, MAX_FIELD, "%s", line);
     snprintf(cards[n_cards].back, MAX_FIELD, "%s", tab + 1);
+    cards[n_cards].file_idx = file_idx;
     n_cards++;
   }
   fclose(f);
@@ -109,19 +116,30 @@ static void load_progress(const char *filename) {
   fclose(f);
 }
 
-static int save_progress(const char *filename) {
-  FILE *f = fopen(filename, "w");
-  if (!f) {
-    fprintf(stderr, "Cannot write progress file: %s\n", filename);
-    return -1;
+static int save_all_progress(void) {
+  int result = 0;
+  for (int fi = 0; fi < n_files; fi++) {
+    FILE *f = fopen(g_progress_files[fi], "w");
+    if (!f) {
+      fprintf(stderr, "Cannot write progress file: %s\n", g_progress_files[fi]);
+      result = -1;
+      continue;
+    }
+    for (int pi = 0; pi < n_progress; pi++) {
+      for (int ci = 0; ci < n_cards; ci++) {
+        if (strcmp(cards[ci].front, progress[pi].front) == 0) {
+          if (cards[ci].file_idx == fi) {
+            fprintf(f, "%s\t%ld\t%d\t%d\t%.2f\n", progress[pi].front,
+                    progress[pi].next_day, progress[pi].interval,
+                    progress[pi].reps, progress[pi].ef);
+          }
+          break;
+        }
+      }
+    }
+    fclose(f);
   }
-  for (int i = 0; i < n_progress; i++) {
-    fprintf(f, "%s\t%ld\t%d\t%d\t%.2f\n", progress[i].front,
-            progress[i].next_day, progress[i].interval, progress[i].reps,
-            progress[i].ef);
-  }
-  fclose(f);
-  return 0;
+  return result;
 }
 
 static Progress *find_progress(const char *front) {
@@ -182,7 +200,7 @@ static void format_date(long day, char *buf, size_t size) {
 }
 
 static void print_usage(const char *prog) {
-  printf(C_BOLD "Usage:" C_RESET " %s <command> <cards.tsv>\n\n", prog);
+  printf(C_BOLD "Usage:" C_RESET " %s <command> <cards.tsv> [more.tsv ...]\n\n", prog);
   printf(C_BOLD "Commands:\n" C_RESET);
   printf("  " C_CYAN "--add" C_RESET "       Add a new card interactively\n");
   printf("  " C_CYAN "--review" C_RESET "    Review cards that are due today\n");
@@ -310,7 +328,7 @@ static void cmd_show(void) {
   }
 }
 
-static void cmd_review(const char *progress_file) {
+static void cmd_review(void) {
   long today = today_day();
   int due_count = 0;
   for (int i = 0; i < n_cards; i++) {
@@ -321,7 +339,7 @@ static void cmd_review(const char *progress_file) {
 
   if (due_count == 0) {
     printf(C_GREEN "No cards due for review.\n" C_RESET);
-    save_progress(progress_file);
+    save_all_progress();
     return;
   }
 
@@ -357,7 +375,7 @@ static void cmd_review(const char *progress_file) {
 
     sm2_update(p, quality);
     printf(C_DIM "Next review in %d day(s).\n\n" C_RESET, p->interval);
-    save_progress(progress_file);
+    save_all_progress();
   }
 
   printf(C_BOLD C_GREEN "Session complete." C_RESET " Reviewed %d card(s).\n", reviewed);
@@ -377,12 +395,11 @@ int main(int argc, char *argv[]) {
   }
 
   const char *cmd = NULL;
-  const char *cards_file = NULL;
   for (int i = 1; i < argc; i++) {
     if (is_command(argv[i]))
       cmd = argv[i];
-    else
-      cards_file = argv[i];
+    else if (n_files < MAX_FILES)
+      snprintf(g_cards_files[n_files++], 4096, "%s", argv[i]);
   }
 
   if (!cmd) {
@@ -396,32 +413,37 @@ int main(int argc, char *argv[]) {
     print_usage(argv[0]);
     return 1;
   }
-  if (!cards_file) {
+  if (n_files == 0) {
     fprintf(stderr, "Missing cards file.\n\n");
     print_usage(argv[0]);
     return 1;
   }
 
-  if (strcmp(cmd, "--add") == 0)
-    return cmd_add(cards_file) < 0 ? 1 : 0;
-
-  if (load_cards(cards_file) < 0)
-    return 1;
-  if (n_cards == 0) {
-    fprintf(stderr, "No cards found in %s\n", cards_file);
-    return 1;
+  if (strcmp(cmd, "--add") == 0) {
+    if (n_files != 1) {
+      fprintf(stderr, "--add requires exactly one cards file.\n");
+      return 1;
+    }
+    return cmd_add(g_cards_files[0]) < 0 ? 1 : 0;
   }
 
-  char progress_file[4096];
-  snprintf(progress_file, sizeof(progress_file), "%s.progress", cards_file);
-  load_progress(progress_file);
+  for (int fi = 0; fi < n_files; fi++) {
+    snprintf(g_progress_files[fi], 4096, "%s.progress", g_cards_files[fi]);
+    if (load_cards(g_cards_files[fi], fi) < 0)
+      return 1;
+    load_progress(g_progress_files[fi]);
+  }
+  if (n_cards == 0) {
+    fprintf(stderr, "No cards found.\n");
+    return 1;
+  }
 
   if (strcmp(cmd, "--show") == 0) {
     cmd_show();
   } else if (strcmp(cmd, "--stats") == 0) {
     cmd_stats();
   } else {
-    cmd_review(progress_file);
+    cmd_review();
   }
 
   return 0;
