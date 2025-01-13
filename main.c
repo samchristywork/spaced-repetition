@@ -43,6 +43,15 @@ static int n_files = 0;
 
 static long today_day(void) { return (long)(time(NULL) / 86400); }
 
+static void shuffle_cards(void) {
+  for (int i = n_cards - 1; i > 0; i--) {
+    int j = rand() % (i + 1);
+    Card tmp = cards[i];
+    cards[i] = cards[j];
+    cards[j] = tmp;
+  }
+}
+
 static void trim_newline(char *s) {
   size_t len = strlen(s);
   while (len > 0 && (s[len - 1] == '\n' || s[len - 1] == '\r')) {
@@ -452,6 +461,9 @@ int main(int argc, char *argv[]) {
       snprintf(cards[i].back, MAX_FIELD, "%s", tmp);
     }
   }
+
+  srand((unsigned int)time(NULL));
+  shuffle_cards();
 
   if (strcmp(cmd, "--show") == 0) {
     cmd_show();
