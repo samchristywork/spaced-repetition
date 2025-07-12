@@ -29,6 +29,21 @@ aggressively the interval grows over time.
 
 ## Usage
 
+```
+Usage: ./main <command> <cards.tsv> [more.tsv ...]
+
+Commands:
+  --add            Add a new card interactively
+  --review         Review cards that are due today
+  --show           Print a table of all cards and their status
+  --stats          Show deck statistics
+  --search <term>  Find cards matching a substring
+  --help           Show this help message
+
+Flags:
+  --reverse        Swap front and back (uses separate progress)
+```
+
 ## Card Format
 
 ## Dependencies
