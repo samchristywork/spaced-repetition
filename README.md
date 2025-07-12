@@ -46,6 +46,15 @@ Flags:
 
 ## Card Format
 
+Cards are stored as tab-separated values with one card per line:
+
+```
+front text<TAB>back text
+```
+
+Progress files are written automatically alongside the deck file as
+`<deck>.progress` (or `<deck>.rev.progress` when `--reverse` is used).
+
 ## Dependencies
 
 ## License
